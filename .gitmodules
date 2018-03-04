@@ -1,0 +1,3 @@
+[submodule "readstat"]
+	path = jamovi/libs/ReadStat
+	url = https://github.com/WizardMac/ReadStat.git
