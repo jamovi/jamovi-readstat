@@ -27,5 +27,5 @@ ext = Extension(
 setup(
     name='jamovi-readstat',
     version='0.1.0',
-    ext_modules = cythonize([ext]),
+    ext_modules=cythonize([ext]),
 )
