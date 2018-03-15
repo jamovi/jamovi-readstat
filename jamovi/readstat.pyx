@@ -18,7 +18,7 @@ cdef int _handle_metadata(readstat_metadata_t *metadata, void *ctx):
         Parser.__handle_metadata(parser, metadata)
         return readstat_handler_status_t.READSTAT_HANDLER_OK
     except Exception as e:
-        print(e)
+        parser._error = e
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
@@ -28,7 +28,7 @@ cdef int _handle_value_label(const char *val_labels, readstat_value_t value, con
         Parser.__handle_value_label(parser, val_labels, value, label)
         return readstat_handler_status_t.READSTAT_HANDLER_OK
     except Exception as e:
-        print(e)
+        parser._error = e
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
@@ -38,7 +38,7 @@ cdef int _handle_variable(int index, readstat_variable_t *variable, const char *
         Parser.__handle_variable(parser, index, variable, val_labels)
         return readstat_handler_status_t.READSTAT_HANDLER_OK
     except Exception as e:
-        print(e)
+        parser._error = e
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
@@ -48,7 +48,7 @@ cdef int _handle_value(int obs_index, readstat_variable_t *variable, readstat_va
         Parser.__handle_value(parser, obs_index, variable, value)
         return readstat_handler_status_t.READSTAT_HANDLER_OK
     except Exception as e:
-        print(e)
+        parser._error = e
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
@@ -89,6 +89,7 @@ cdef class Parser:
         self._this = readstat_parser_init();
         self._var_count = -1
         self._row_count = -1
+        self._error = None
         readstat_set_metadata_handler(self._this, _handle_metadata)
         readstat_set_value_label_handler(self._this, _handle_value_label)
         readstat_set_variable_handler(self._this, _handle_variable)
@@ -113,8 +114,11 @@ cdef class Parser:
         readstat_parser_free(self._this)
 
         if status != READSTAT_OK:
-            message = readstat_error_message(status).decode('utf-8')
-            raise ValueError(message)
+            if self._error is not None:
+                raise self._error
+            else:
+                message = readstat_error_message(status).decode('utf-8')
+                raise ValueError(message)
 
 
     def handle_metadata(self, metadata):
