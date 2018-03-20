@@ -14,15 +14,30 @@ source_files += glob.glob('jamovi/libs/ReadStat/src/sas/*.c')
 source_files += glob.glob('jamovi/libs/ReadStat/src/stata/*.c')
 source_files += [ 'jamovi/readstat.pyx' ]
 
+library_dirs = [ ]
 libraries = [ ]
+include_dirs = [ ]
+extra_link_args = [ ]
 
 if platform.system() == 'Darwin':
     libraries.append('iconv')
+elif platform.system() == 'Windows':
+    include_dirs.append('jamovi/libs')
+    library_dirs.append('jamovi/libs')
+    libraries.append('libiconv-static')
+    libraries.append('libz-static')
+elif platform.system() == 'Linux':
+    libraries.append('z')
+else:
+    raise RuntimeError('Unsupported OS')
 
 ext = Extension(
     'jamovi.readstat',
     sources=source_files,
-    libraries=libraries)
+    library_dirs=library_dirs,
+    libraries=libraries,
+    include_dirs=include_dirs,
+    extra_link_args=extra_link_args)
 
 setup(
     name='jamovi-readstat',
