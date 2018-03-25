@@ -3,6 +3,8 @@
 from cython.operator cimport dereference as deref
 from numbers import Number
 from enum import Enum
+from datetime import date
+from datetime import timedelta
 
 
 class Measure(Enum):
@@ -12,8 +14,12 @@ class Measure(Enum):
     SCALE   = 3
 
 
+GREG_START = date(1582, 10, 14)
+
+
 cdef int _handle_metadata(readstat_metadata_t *metadata, void *ctx):
     parser = <object>ctx
+    parser._is_date = [False] * readstat_get_var_count(metadata)
     try:
         Parser.__handle_metadata(parser, metadata)
         return readstat_handler_status_t.READSTAT_HANDLER_OK
@@ -35,6 +41,9 @@ cdef int _handle_value_label(const char *val_labels, readstat_value_t value, con
 cdef int _handle_variable(int index, readstat_variable_t *variable, const char *val_labels, void *ctx):
     parser = <object>ctx
     try:
+        format = readstat_variable_get_format(variable).decode('utf-8')
+        if format[0:4] == 'DATE' or format[1:5] == 'DATE':
+            parser._is_date[index] = True
         Parser.__handle_variable(parser, index, variable, val_labels)
         return readstat_handler_status_t.READSTAT_HANDLER_OK
     except Exception as e:
@@ -52,7 +61,7 @@ cdef int _handle_value(int obs_index, readstat_variable_t *variable, readstat_va
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
-cdef _resolve_value(readstat_value_t value):
+cdef _resolve_value(readstat_value_t value, is_date=False):
     cdef readstat_type_t t
 
     if readstat_value_is_system_missing(value):
@@ -61,19 +70,26 @@ cdef _resolve_value(readstat_value_t value):
     t = readstat_value_type(value)
 
     if t == READSTAT_TYPE_STRING:
-        return readstat_string_value(value).decode('utf-8')
+        v = readstat_string_value(value).decode('utf-8')
     elif t == READSTAT_TYPE_INT8:
-        return readstat_int8_value(value)
+        v = readstat_int8_value(value)
     elif t == READSTAT_TYPE_INT16:
-        return readstat_int16_value(value)
+        v = readstat_int16_value(value)
     elif t == READSTAT_TYPE_INT32:
-        return readstat_int32_value(value)
+        v = readstat_int32_value(value)
     elif t == READSTAT_TYPE_FLOAT:
-        return readstat_float_value(value)
+        v = readstat_float_value(value)
     elif t == READSTAT_TYPE_DOUBLE:
-        return readstat_double_value(value)
+        v = readstat_double_value(value)
     else:
-        return None
+        v = None
+
+    if v is not None and is_date:
+        days = v / 24 / 60 / 60
+        delta = timedelta(days=days)
+        v = GREG_START + delta
+
+    return v
 
 
 cdef class Parser:
@@ -89,6 +105,7 @@ cdef class Parser:
         self._this = readstat_parser_init();
         self._var_count = -1
         self._row_count = -1
+        self._is_date = None
         self._error = None
         readstat_set_metadata_handler(self._this, _handle_metadata)
         readstat_set_value_label_handler(self._this, _handle_value_label)
@@ -170,8 +187,9 @@ cdef class Parser:
             self.finalize_variables()
 
     cdef __handle_value(self, int obs_index, readstat_variable_t *variable, readstat_value_t value):
-        v = _resolve_value(value)
         var_index = readstat_variable_get_index(variable)
+        is_date = self._is_date[var_index]
+        v = _resolve_value(value, is_date)
         self.handle_value(var_index, obs_index, v)
         if var_index == self._var_count - 1 and obs_index == self._row_count - 1:
             self.finalize_values()
@@ -221,20 +239,27 @@ cdef class Variable:
     @property
     def type(self):
         t = readstat_variable_get_type(&self._this)
+        ret = None
         if t == READSTAT_TYPE_STRING:
-            return str
+            ret = str
         elif t == READSTAT_TYPE_INT8:
-            return int
+            ret = int
         elif t == READSTAT_TYPE_INT16:
-            return int
+            ret = int
         elif t == READSTAT_TYPE_INT32:
-            return int
+            ret = int
         elif t == READSTAT_TYPE_FLOAT:
-            return float
+            ret = float
         elif t == READSTAT_TYPE_DOUBLE:
-            return float
+            ret = float
         else:
-            return None
+            ret == None
+
+        if ret is not None:
+            if self.format[0:4] == 'DATE' or self.format[1:5] == 'DATE':
+                ret = date
+
+        return ret
 
     @property
     def type_class(self):
