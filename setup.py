@@ -18,6 +18,7 @@ library_dirs = [ ]
 libraries = [ ]
 include_dirs = [ ]
 extra_link_args = [ ]
+extra_compile_args = [ '-DHAVE_ZLIB' ]
 
 if platform.system() == 'Darwin':
     libraries.append('iconv')
@@ -37,6 +38,7 @@ ext = Extension(
     library_dirs=library_dirs,
     libraries=libraries,
     include_dirs=include_dirs,
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args)
 
 setup(
