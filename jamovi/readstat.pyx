@@ -5,6 +5,7 @@ from numbers import Number
 from enum import Enum
 from datetime import date
 from datetime import timedelta
+import os.path
 
 
 class Measure(Enum):
@@ -16,6 +17,22 @@ class Measure(Enum):
 
 GREG_START = date(1582, 10, 14)
 
+
+cdef int _handle_open(const char *u8_path, void *io_ctx):
+    cdef int fd
+
+    path = u8_path.decode('utf-8')
+    if not os.path.isfile(path):
+        return -1
+
+    IF UNAME_SYSNAME == 'Windows':
+        cdef Py_ssize_t length
+        u16_path = PyUnicode_AsWideCharString(path, &length)
+        fd = _wsopen(u16_path, _O_RDONLY | _O_BINARY, _SH_DENYRD, 0)
+        assign_fd(io_ctx, fd)
+        return fd
+    ELSE:
+        return -1
 
 cdef int _handle_metadata(readstat_metadata_t *metadata, void *ctx):
     parser = <object>ctx
@@ -107,12 +124,17 @@ cdef class Parser:
         self._row_count = -1
         self._is_date = None
         self._error = None
+
+        IF UNAME_SYSNAME == 'Windows':  # custom file opener for windows *sigh*
+            readstat_set_open_handler(self._this, _handle_open)
+
         readstat_set_metadata_handler(self._this, _handle_metadata)
         readstat_set_value_label_handler(self._this, _handle_value_label)
         readstat_set_variable_handler(self._this, _handle_variable)
         readstat_set_value_handler(self._this, _handle_value)
 
         path_enced = path.encode('utf-8')
+
         if format == 'sav':
             status = readstat_parse_sav(self._this, path_enced, <void*>self)
         elif format == 'dta':

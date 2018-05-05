@@ -5,6 +5,8 @@ from libc.stdint cimport int32_t
 from libc.stdint cimport int16_t
 from libc.stdint cimport int8_t
 from libc.stdint cimport uint8_t
+from libc.stddef cimport wchar_t
+
 
 cdef extern from "<sys/types.h>":
     ctypedef long off_t
@@ -379,3 +381,30 @@ cdef extern from "libs/ReadStat/src/readstat.h":
     # Once you've written all the rows, clean up after yourself
     readstat_error_t readstat_end_writing(readstat_writer_t *writer);
     void readstat_writer_free(readstat_writer_t *writer);
+
+
+cdef extern from "libs/ReadStat/src/readstat_io_unistd.h":
+    cdef struct unistd_io_ctx_t "unistd_io_ctx_s":
+        pass
+
+IF UNAME_SYSNAME == 'Windows':
+
+    cdef extern from "Python.h":
+        wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *)
+
+    cdef extern from "<fcntl.h>":
+        int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
+        cdef int _O_RDONLY
+        cdef int _O_BINARY
+
+    cdef extern from "<share.h>":
+        cdef int _SH_DENYRW  # Denies read and write access to a file.
+        cdef int _SH_DENYWR  # Denies write access to a file.
+        cdef int _SH_DENYRD  # Denies read access to a file.
+        cdef int _SH_DENYNO
+
+    cdef extern from *:
+        """
+        void assign_fd(void *io_ctx, int fd) { ((unistd_io_ctx_t*)io_ctx)->fd = fd; }
+        """
+        void assign_fd(void *io_ctx, int fd)
