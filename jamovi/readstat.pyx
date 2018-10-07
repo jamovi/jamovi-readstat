@@ -211,7 +211,10 @@ cdef class Parser:
     cdef __handle_value(self, int obs_index, readstat_variable_t *variable, readstat_value_t value):
         var_index = readstat_variable_get_index(variable)
         is_date = self._is_date[var_index]
-        v = _resolve_value(value, is_date)
+        if readstat_value_is_missing(value, variable) == 1:
+            v = None
+        else:
+            v = _resolve_value(value, is_date)
         self.handle_value(var_index, obs_index, v)
         if var_index == self._var_count - 1 and obs_index == self._row_count - 1:
             self.finalize_values()
@@ -316,11 +319,29 @@ cdef class Variable:
     def alignment(self):
         return readstat_variable_get_alignment(&self._this)
 
-    @property
-    def missing_ranges_count(self):
-        return readstat_variable_get_missing_ranges_count(&self._this)
+    def is_missing(self, value):
+        if value is None:
+            return True
+        elif isinstance(value, str):
+            return value == ''
+        elif isinstance(value, Number):
+            for bounds in self.missing_ranges:
+                if value >= bounds[0] and value <= bounds[1]:
+                    return True
+        else:
+            return False
 
-    # @property
-    # def missing_range(self):
-    #    readstat_value_t readstat_variable_get_missing_range_lo(const readstat_variable_t *variable, int i);
-    #    readstat_value_t readstat_variable_get_missing_range_hi(const readstat_variable_t *variable, int i);
+    @property
+    def missing_ranges(self):
+        cdef readstat_value_t lo;
+        cdef readstat_value_t hi;
+
+        n = readstat_variable_get_missing_ranges_count(&self._this)
+        ranges = [None] * n
+
+        for i in range(n):
+            lo = readstat_variable_get_missing_range_lo(&self._this, i)
+            hi = readstat_variable_get_missing_range_hi(&self._this, i)
+            ranges[i] = (_resolve_value(lo), _resolve_value(hi))
+
+        return ranges
