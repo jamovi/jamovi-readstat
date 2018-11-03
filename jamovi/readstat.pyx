@@ -58,7 +58,7 @@ cdef int _handle_value_label(const char *val_labels, readstat_value_t value, con
 cdef int _handle_variable(int index, readstat_variable_t *variable, const char *val_labels, void *ctx):
     parser = <object>ctx
     try:
-        format = readstat_variable_get_format(variable).decode('utf-8')
+        format = readstat_variable_get_format(variable).decode('utf-8', 'replace')
         if format[0:4] == 'DATE' or format[1:5] == 'DATE':
             parser._is_date[index] = True
         Parser.__handle_variable(parser, index, variable, val_labels)
@@ -87,7 +87,7 @@ cdef _resolve_value(readstat_value_t value, is_date=False):
     t = readstat_value_type(value)
 
     if t == READSTAT_TYPE_STRING:
-        v = readstat_string_value(value).decode('utf-8')
+        v = readstat_string_value(value).decode('utf-8', 'replace')
     elif t == READSTAT_TYPE_INT8:
         v = readstat_int8_value(value)
     elif t == READSTAT_TYPE_INT16:
@@ -156,7 +156,7 @@ cdef class Parser:
             if self._error is not None:
                 raise self._error
             else:
-                message = readstat_error_message(status).decode('utf-8')
+                message = readstat_error_message(status).decode('utf-8', 'replace')
                 raise ValueError(message)
 
 
@@ -190,18 +190,18 @@ cdef class Parser:
 
     cdef __handle_value_label(self, const char *val_labels, readstat_value_t value, const char *label):
         if val_labels != NULL:
-            labels_key = val_labels.decode('utf-8')
+            labels_key = val_labels.decode('utf-8', 'replace')
         else:
             labels_key = None
         raw_value  = _resolve_value(value)
-        label_str  = label.decode('utf-8')
+        label_str  = label.decode('utf-8', 'replace')
         self.handle_value_label(labels_key, raw_value, label_str)
 
     cdef __handle_variable(self, int index, readstat_variable_t *variable, const char *val_labels):
         var = Variable()
         var._this = deref(variable)
         if val_labels != NULL:
-            labels_key = val_labels.decode('utf-8')
+            labels_key = val_labels.decode('utf-8', 'replace')
         else:
             labels_key = None
         self.handle_variable(index, var, labels_key)
@@ -246,20 +246,20 @@ cdef class Variable:
 
     @property
     def name(self):
-        return readstat_variable_get_name(&self._this).decode('utf-8')
+        return readstat_variable_get_name(&self._this).decode('utf-8', 'replace')
 
     @property
     def label(self):
         cdef const char *label;
         label = readstat_variable_get_label(&self._this);
         if label != NULL:
-            return label.decode('utf-8')
+            return label.decode('utf-8', 'replace')
         else:
             return None
 
     @property
     def format(self):
-        return readstat_variable_get_format(&self._this).decode('utf-8')
+        return readstat_variable_get_format(&self._this).decode('utf-8', 'replace')
 
     @property
     def type(self):
