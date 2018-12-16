@@ -1,3 +1,6 @@
 [submodule "readstat"]
 	path = jamovi/libs/ReadStat
 	url = https://github.com/jonathon-love/ReadStat.git
+[submodule "librdata"]
+	path = jamovi/libs/librdata
+	url = https://github.com/jonathon-love/librdata.git

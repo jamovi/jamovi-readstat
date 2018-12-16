@@ -7,12 +7,16 @@ from distutils.extension import Extension
 from Cython.Build import cythonize
 
 
-source_files = [ ]
-source_files += glob.glob('jamovi/libs/ReadStat/src/*.c')
-source_files += glob.glob('jamovi/libs/ReadStat/src/spss/*.c')
-source_files += glob.glob('jamovi/libs/ReadStat/src/sas/*.c')
-source_files += glob.glob('jamovi/libs/ReadStat/src/stata/*.c')
-source_files += [ 'jamovi/readstat.pyx' ]
+readstat_source_files = [ ]
+readstat_source_files += glob.glob('jamovi/libs/ReadStat/src/*.c')
+readstat_source_files += glob.glob('jamovi/libs/ReadStat/src/spss/*.c')
+readstat_source_files += glob.glob('jamovi/libs/ReadStat/src/sas/*.c')
+readstat_source_files += glob.glob('jamovi/libs/ReadStat/src/stata/*.c')
+readstat_source_files += [ 'jamovi/readstat.pyx' ]
+
+librdata_source_files = [ ]
+librdata_source_files += glob.glob('jamovi/libs/librdata/src/*.c')
+librdata_source_files += [ 'jamovi/librdata.pyx' ]
 
 library_dirs = [ ]
 libraries = [ ]
@@ -32,9 +36,18 @@ elif platform.system() == 'Linux':
 else:
     raise RuntimeError('Unsupported OS')
 
-ext = Extension(
+readstat = Extension(
     'jamovi.readstat',
-    sources=source_files,
+    sources=readstat_source_files,
+    library_dirs=library_dirs,
+    libraries=libraries,
+    include_dirs=include_dirs,
+    extra_compile_args=extra_compile_args,
+    extra_link_args=extra_link_args)
+
+librdata = Extension(
+    'jamovi.librdata',
+    sources=librdata_source_files,
     library_dirs=library_dirs,
     libraries=libraries,
     include_dirs=include_dirs,
@@ -44,5 +57,5 @@ ext = Extension(
 setup(
     name='jamovi-readstat',
     version='0.1.0',
-    ext_modules=cythonize([ext]),
+    ext_modules=cythonize([ readstat, librdata ]),
 )
