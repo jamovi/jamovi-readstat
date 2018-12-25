@@ -1,11 +1,12 @@
+# cython: c_string_type=str, c_string_encoding=utf8, language_level=3
 
-
-from cython.operator cimport dereference as deref
+import math
 from numbers import Number
 from enum import Enum
 from datetime import date
 from datetime import timedelta
 import os.path
+from cython.operator cimport dereference as deref
 
 
 class Measure(Enum):
@@ -18,21 +19,40 @@ class Measure(Enum):
 GREG_START = date(1582, 10, 14)
 
 
-cdef int _handle_open(const char *u8_path, void *io_ctx):
-    cdef int fd
-
-    path = u8_path.decode('utf-8')
-    if not os.path.isfile(path):
-        return -1
-
+cdef int _os_open(path, mode):
+    cdef int flags
     IF UNAME_SYSNAME == 'Windows':
         cdef Py_ssize_t length
         u16_path = PyUnicode_AsWideCharString(path, &length)
-        fd = _wsopen(u16_path, _O_RDONLY | _O_BINARY, _SH_DENYRD, 0)
-        assign_fd(io_ctx, fd)
-        return fd
+        if mode == 'r':
+            flags = _O_RDONLY | _O_BINARY
+        else:
+            flags = _O_WRONLY | _O_CREAT | _O_BINARY
+        return _wsopen(u16_path, flags, _SH_DENYRD, 0)
     ELSE:
+        if mode == 'r':
+            flags = O_RDONLY
+        else:
+            flags = O_WRONLY | O_CREAT | O_TRUNC
+        return open(path.encode('utf-8'), flags, 0644)
+
+
+cdef int _os_close(int fd):
+    IF UNAME_SYSNAME == 'Windows':
+        return _close(fd)
+    ELSE:
+        return close(fd)
+
+
+cdef int _handle_open(const char* path, void* io_ctx):
+    cdef unistd_io_ctx_t* ctx = <unistd_io_ctx_t*>io_ctx
+    cdef int fd
+    if not os.path.isfile(path):
         return -1
+    fd = _os_open(path, 'r')
+    ctx.fd = fd
+    return fd
+
 
 cdef int _handle_metadata(readstat_metadata_t *metadata, void *ctx):
     parser = <object>ctx
@@ -58,7 +78,7 @@ cdef int _handle_value_label(const char *val_labels, readstat_value_t value, con
 cdef int _handle_variable(int index, readstat_variable_t *variable, const char *val_labels, void *ctx):
     parser = <object>ctx
     try:
-        format = readstat_variable_get_format(variable).decode('utf-8', 'replace')
+        format = readstat_variable_get_format(variable)
         if format[0:4] == 'DATE' or format[1:5] == 'DATE':
             parser._is_date[index] = True
         Parser.__handle_variable(parser, index, variable, val_labels)
@@ -87,7 +107,9 @@ cdef _resolve_value(readstat_value_t value, is_date=False):
     t = readstat_value_type(value)
 
     if t == READSTAT_TYPE_STRING:
-        v = readstat_string_value(value).decode('utf-8', 'replace')
+        v = readstat_string_value(value)
+        if v == '':
+            v = None
     elif t == READSTAT_TYPE_INT8:
         v = readstat_int8_value(value)
     elif t == READSTAT_TYPE_INT16:
@@ -112,6 +134,7 @@ cdef _resolve_value(readstat_value_t value, is_date=False):
 cdef class Parser:
 
     cdef readstat_parser_t *_this
+    cdef int _fd
     cdef int _row_count
     cdef int _var_count
 
@@ -120,6 +143,7 @@ cdef class Parser:
         cdef readstat_error_t status
 
         self._this = readstat_parser_init();
+        self._fd = 0
         self._var_count = -1
         self._row_count = -1
         self._is_date = None
@@ -145,7 +169,7 @@ cdef class Parser:
             status = readstat_parse_sas7bdat(self._this, path_enced, <void*>self)
         elif format == 'sas7bcat':
             status = readstat_parse_sas7bcat(self._this, path_enced, <void*>self)
-        elif format == 'xport':
+        elif format == 'xpt':
             status = readstat_parse_xport(self._this, path_enced, <void*>self)
         else:
             raise ValueError('Unrecognised format {}'.format(format))
@@ -156,7 +180,7 @@ cdef class Parser:
             if self._error is not None:
                 raise self._error
             else:
-                message = readstat_error_message(status).decode('utf-8', 'replace')
+                message = readstat_error_message(status)
                 raise ValueError(message)
 
 
@@ -185,23 +209,23 @@ cdef class Parser:
         self._row_count = readstat_get_row_count(metadata)
         self._var_count = readstat_get_var_count(metadata)
         md = MetaData()
-        md._this = deref(metadata)
+        md._this = metadata
         self.handle_metadata(md)
 
     cdef __handle_value_label(self, const char *val_labels, readstat_value_t value, const char *label):
         if val_labels != NULL:
-            labels_key = val_labels.decode('utf-8', 'replace')
+            labels_key = val_labels
         else:
             labels_key = None
         raw_value  = _resolve_value(value)
-        label_str  = label.decode('utf-8', 'replace')
+        label_str  = label
         self.handle_value_label(labels_key, raw_value, label_str)
 
     cdef __handle_variable(self, int index, readstat_variable_t *variable, const char *val_labels):
         var = Variable()
-        var._this = deref(variable)
+        var._this = variable
         if val_labels != NULL:
-            labels_key = val_labels.decode('utf-8', 'replace')
+            labels_key = val_labels
         else:
             labels_key = None
         self.handle_variable(index, var, labels_key)
@@ -222,102 +246,117 @@ cdef class Parser:
 
 cdef class MetaData:
 
-    cdef readstat_metadata_t _this
+    cdef readstat_metadata_t *_this
 
     @property
     def row_count(self):
-        return readstat_get_row_count(&self._this)
+        return readstat_get_row_count(self._this)
 
     @property
     def var_count(self):
-        return readstat_get_var_count(&self._this)
+        return readstat_get_var_count(self._this)
 
 cdef class Variable:
 
-    cdef readstat_variable_t _this
+    cdef readstat_variable_t *_this
 
     @property
     def index(self):
-        return readstat_variable_get_index(&self._this)
+        return readstat_variable_get_index(self._this)
 
     @property
     def index_after_skipping(self):
-        return readstat_variable_get_index_after_skipping(&self._this)
+        return readstat_variable_get_index_after_skipping(self._this)
 
-    @property
-    def name(self):
-        return readstat_variable_get_name(&self._this).decode('utf-8', 'replace')
+    property name:
+        def __get__(self):
+            return readstat_variable_get_name(self._this)
 
-    @property
-    def label(self):
-        cdef const char *label;
-        label = readstat_variable_get_label(&self._this);
-        if label != NULL:
-            return label.decode('utf-8', 'replace')
-        else:
-            return None
+    property label:
+        def __get__(self):
+            cdef const char *label;
+            label = readstat_variable_get_label(self._this);
+            if label != NULL:
+                return label
+            else:
+                return None
 
-    @property
-    def format(self):
-        return readstat_variable_get_format(&self._this).decode('utf-8', 'replace')
+        def __set__(self, label):
+            readstat_variable_set_label(self._this, label.encode('utf-8'))
 
-    @property
-    def type(self):
-        t = readstat_variable_get_type(&self._this)
-        ret = None
-        if t == READSTAT_TYPE_STRING:
-            ret = str
-        elif t == READSTAT_TYPE_INT8:
-            ret = int
-        elif t == READSTAT_TYPE_INT16:
-            ret = int
-        elif t == READSTAT_TYPE_INT32:
-            ret = int
-        elif t == READSTAT_TYPE_FLOAT:
-            ret = float
-        elif t == READSTAT_TYPE_DOUBLE:
-            ret = float
-        else:
-            ret == None
+    property format:
+        def __get__(self):
+            return readstat_variable_get_format(self._this)
 
-        if ret is not None:
-            if self.format[0:4] == 'DATE' or self.format[1:5] == 'DATE':
-                ret = date
+    property type:
+        def __get__(self):
+            t = readstat_variable_get_type(self._this)
+            ret = None
+            if t == READSTAT_TYPE_STRING:
+                ret = str
+            elif t == READSTAT_TYPE_INT8:
+                ret = int
+            elif t == READSTAT_TYPE_INT16:
+                ret = int
+            elif t == READSTAT_TYPE_INT32:
+                ret = int
+            elif t == READSTAT_TYPE_FLOAT:
+                ret = float
+            elif t == READSTAT_TYPE_DOUBLE:
+                ret = float
+            else:
+                ret == None
 
-        return ret
+            if ret is not None:
+                if self.format[0:4] == 'DATE' or self.format[1:5] == 'DATE':
+                    ret = date
 
-    @property
-    def type_class(self):
-        tc = readstat_variable_get_type_class(&self._this)
-        if tc == readstat_type_class_t.READSTAT_TYPE_CLASS_STRING:
-            return str
-        else:
-            return Number
+            return ret
 
-    @property
-    def storage_width(self):
-        return readstat_variable_get_storage_width(&self._this)
+    property type_class:
+        def __get__(self):
+            tc = readstat_variable_get_type_class(self._this)
+            if tc == readstat_type_class_t.READSTAT_TYPE_CLASS_STRING:
+                return str
+            else:
+                return Number
 
-    @property
-    def display_width(self):
-        return readstat_variable_get_display_width(&self._this)
+    property storage_width:
+        def __get__(self):
+            return readstat_variable_get_storage_width(self._this)
 
-    @property
-    def measure(self):
-        cdef readstat_measure_t t
-        t = readstat_variable_get_measure(&self._this)
-        if t == READSTAT_MEASURE_NOMINAL:
-            return Measure.NOMINAL
-        elif t == READSTAT_MEASURE_ORDINAL:
-            return Measure.ORDINAL
-        elif t == READSTAT_MEASURE_SCALE:
-            return Measure.SCALE
-        else:
-            return Measure.UNKNOWN
+    property display_width:
+        def __get__(self):
+            return readstat_variable_get_display_width(self._this)
 
-    @property
-    def alignment(self):
-        return readstat_variable_get_alignment(&self._this)
+    property measure:
+        def __get__(self):
+            cdef readstat_measure_t t
+            t = readstat_variable_get_measure(self._this)
+            if t == READSTAT_MEASURE_NOMINAL:
+                return Measure.NOMINAL
+            elif t == READSTAT_MEASURE_ORDINAL:
+                return Measure.ORDINAL
+            elif t == READSTAT_MEASURE_SCALE:
+                return Measure.SCALE
+            else:
+                return Measure.UNKNOWN
+
+        def __set__(self, value):
+            cdef readstat_measure_t t
+            if value is Measure.NOMINAL:
+                t = READSTAT_MEASURE_NOMINAL
+            elif value is Measure.ORDINAL:
+                t = READSTAT_MEASURE_ORDINAL
+            elif value is Measure.SCALE:
+                t = READSTAT_MEASURE_SCALE
+            else:
+                t = READSTAT_MEASURE_UNKNOWN
+            readstat_variable_set_measure(self._this, t)
+
+    property alignment:
+        def __get__(self):
+            return readstat_variable_get_alignment(self._this)
 
     def is_missing(self, value):
         if value is None:
@@ -331,17 +370,171 @@ cdef class Variable:
         else:
             return False
 
-    @property
-    def missing_ranges(self):
-        cdef readstat_value_t lo;
-        cdef readstat_value_t hi;
+    property missing_ranges:
+        def __get__(self):
+            cdef readstat_value_t lo;
+            cdef readstat_value_t hi;
 
-        n = readstat_variable_get_missing_ranges_count(&self._this)
-        ranges = [None] * n
+            n = readstat_variable_get_missing_ranges_count(self._this)
+            ranges = [None] * n
 
-        for i in range(n):
-            lo = readstat_variable_get_missing_range_lo(&self._this, i)
-            hi = readstat_variable_get_missing_range_hi(&self._this, i)
-            ranges[i] = (_resolve_value(lo), _resolve_value(hi))
+            for i in range(n):
+                lo = readstat_variable_get_missing_range_lo(self._this, i)
+                hi = readstat_variable_get_missing_range_hi(self._this, i)
+                ranges[i] = (_resolve_value(lo), _resolve_value(hi))
 
-        return ranges
+            return ranges
+
+
+cdef ssize_t _handle_write(const void *data, size_t len, void *ctx):
+    cdef int fd = deref(<int*>ctx)
+    IF UNAME_SYSNAME == 'Windows':
+        return _write(fd, data, len)
+    ELSE:
+        return write(fd, data, len)
+
+
+cdef class Writer:
+
+    cdef object _format
+    cdef object _row_count
+    cdef readstat_writer_t *_writer
+    cdef object _variables
+    cdef object _current_row
+    cdef int _fd
+
+    def __init__(self):
+        self._format = None
+        self._row_count = 0
+        self._writer = NULL
+        self._variables = [ ]
+        self._current_row = -1
+        self._fd = 0
+
+    def open(self, path, format):
+        cdef readstat_variable_t *var;
+
+        self._format = format
+        self._writer = readstat_writer_init()
+        readstat_set_data_writer(self._writer, _handle_write)
+        self._fd = _os_open(path, 'w')
+
+    def set_row_count(self, row_count):
+        self._row_count = row_count
+
+    def _begin_writing(self):
+
+        if self._format == 'sav':
+            begin_func = readstat_begin_writing_sav
+        elif self._format == 'dta':
+            begin_func = readstat_begin_writing_dta
+        elif self._format == 'por':
+            begin_func = readstat_begin_writing_por
+        elif self._format == 'sas7bdat':
+            begin_func = readstat_begin_writing_sas7bdat
+        elif self._format == 'xpt':
+            begin_func = readstat_begin_writing_xport
+        else:
+            raise ValueError('Unsupported format')
+
+        begin_func(self._writer, &self._fd, self._row_count)
+
+    def close(self):
+        if self._writer != NULL:
+            if self._current_row != -1:
+                readstat_end_row(self._writer)
+            readstat_end_writing(self._writer)
+            readstat_writer_free(self._writer)
+            _os_close(self._fd)
+
+    def set_file_label(self, label):
+        readstat_writer_set_file_label(self._writer, label.encode('utf-8'))
+
+    def insert_value(self, row_no, col_no, value):
+        cdef readstat_error_t status;
+        cdef readstat_variable_t *variable
+
+        if self._current_row == -1:
+            self._begin_writing()
+
+        if row_no != self._current_row:
+            if self._current_row != -1:
+                readstat_end_row(self._writer)
+            readstat_begin_row(self._writer)
+            self._current_row = row_no
+
+        variable = readstat_get_variable(self._writer, col_no)
+
+        status = READSTAT_OK
+        if isinstance(value, int):
+            if value != -2147483648:
+                status = readstat_insert_int32_value(self._writer, variable, value)
+            else:
+                status = readstat_insert_missing_value(self._writer, variable)
+        elif isinstance(value, float):
+            if not math.isnan(value):
+                status = readstat_insert_double_value(self._writer, variable, value)
+            else:
+                status = readstat_insert_missing_value(self._writer, variable)
+        elif isinstance(value, str):
+            if value != '':
+                status = readstat_insert_string_value(self._writer, variable, value.encode('utf-8'))
+            else:
+                status = readstat_insert_missing_value(self._writer, variable)
+
+        if status != READSTAT_OK:
+            raise ValueError(readstat_error_message(status))
+
+
+    def add_value_labels(self, Variable var, dtype, labels):
+        cdef readstat_label_set_t *label_set
+        cdef readstat_type_t t
+
+        if dtype is str:
+            t = READSTAT_TYPE_STRING
+        else:
+            t = READSTAT_TYPE_INT32
+
+        label_set = readstat_add_label_set(
+            self._writer, t,
+            var.name.encode('utf-8'));
+
+        for level in labels:
+            if dtype is str:
+                if level[0] == level[1]:
+                    continue
+                readstat_label_string_value(
+                    label_set,
+                    level[0].encode('utf-8'),
+                    level[1].encode('utf-8'))
+            else:
+                if str(level[0]) == level[1]:
+                    continue
+                readstat_label_int32_value(
+                    label_set,
+                    level[0],
+                    level[1].encode('utf-8'))
+
+        readstat_variable_set_label_set(var._this, label_set)
+
+
+    def add_variable(self, name, dtype, storage_width):
+        cdef readstat_variable_t *variable
+        cdef readstat_type_t data_type
+
+        if dtype is float:
+            data_type = READSTAT_TYPE_DOUBLE
+        elif dtype is str:
+            data_type = READSTAT_TYPE_STRING
+        else:
+            data_type = READSTAT_TYPE_INT32
+
+        variable = readstat_add_variable(
+            self._writer,
+            name.encode('utf-8'),
+            data_type,
+            storage_width);
+
+        var = Variable()
+        var._this = variable
+        return var

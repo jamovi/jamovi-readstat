@@ -8,18 +8,18 @@ from libc.stdint cimport uint8_t
 from libc.stddef cimport wchar_t
 
 
-cdef extern from "<sys/types.h>":
+cdef extern from '<sys/types.h>':
     ctypedef long off_t
 
 
-cdef extern from "libs/ReadStat/src/readstat.h":
+cdef extern from 'libs/ReadStat/src/readstat.h':
 
     cdef enum readstat_handler_status_t:
         READSTAT_HANDLER_OK
         READSTAT_HANDLER_ABORT
         READSTAT_HANDLER_SKIP_VARIABLE
 
-    cpdef enum readstat_type_t "readstat_type_e":
+    cpdef enum readstat_type_t 'readstat_type_e':
         READSTAT_TYPE_STRING
         READSTAT_TYPE_INT8
         READSTAT_TYPE_INT16
@@ -28,33 +28,33 @@ cdef extern from "libs/ReadStat/src/readstat.h":
         READSTAT_TYPE_DOUBLE
         READSTAT_TYPE_STRING_REF
 
-    cpdef enum readstat_type_class_t "readstat_type_class_e":
+    cpdef enum readstat_type_class_t 'readstat_type_class_e':
         READSTAT_TYPE_CLASS_STRING
         READSTAT_TYPE_CLASS_NUMERIC
 
-    cpdef enum readstat_measure_t "readstat_measure_e":
+    cpdef enum readstat_measure_t 'readstat_measure_e':
         READSTAT_MEASURE_UNKNOWN
         READSTAT_MEASURE_NOMINAL
         READSTAT_MEASURE_ORDINAL
         READSTAT_MEASURE_SCALE
 
-    cpdef enum readstat_alignment_t "readstat_alignment_e":
+    cpdef enum readstat_alignment_t 'readstat_alignment_e':
         READSTAT_ALIGNMENT_UNKNOWN,
         READSTAT_ALIGNMENT_LEFT,
         READSTAT_ALIGNMENT_CENTER,
         READSTAT_ALIGNMENT_RIGHT
 
-    cpdef enum readstat_compress_t "readstat_compress_e":
+    cpdef enum readstat_compress_t 'readstat_compress_e':
         READSTAT_COMPRESS_NONE
         READSTAT_COMPRESS_ROWS
         READSTAT_COMPRESS_BINARY
 
-    cpdef enum readstat_endian_t "readstat_endian_e":
+    cpdef enum readstat_endian_t 'readstat_endian_e':
         READSTAT_ENDIAN_NONE
         READSTAT_ENDIAN_LITTLE
         READSTAT_ENDIAN_BIG
 
-    cpdef enum readstat_error_t "readstat_error_e":
+    cpdef enum readstat_error_t 'readstat_error_e':
         READSTAT_OK
         READSTAT_ERROR_OPEN = 1
         READSTAT_ERROR_READ
@@ -97,7 +97,7 @@ cdef extern from "libs/ReadStat/src/readstat.h":
 
     const char *readstat_error_message(readstat_error_t error_code);
 
-    cdef struct readstat_metadata_t "readstat_metadata_s":
+    cdef struct readstat_metadata_t 'readstat_metadata_s':
         pass
 
     int readstat_get_row_count(readstat_metadata_t *metadata);
@@ -112,21 +112,21 @@ cdef extern from "libs/ReadStat/src/readstat.h":
     const char *readstat_get_file_label(readstat_metadata_t *metadata);
     const char *readstat_get_file_encoding(readstat_metadata_t *metadata);
 
-    cdef struct readstat_value_t "readstat_value_s":
+    cdef struct readstat_value_t 'readstat_value_s':
         pass
 
     # Internal data structures
 
-    cdef struct readstat_value_label_t "readstat_value_label_s":
+    cdef struct readstat_value_label_t 'readstat_value_label_s':
         pass
 
-    cdef struct readstat_label_set_t "readstat_label_set_s":
+    cdef struct readstat_label_set_t 'readstat_label_set_s':
         pass
 
-    cdef struct readstat_missingness_t "readstat_missingness_s":
+    cdef struct readstat_missingness_t 'readstat_missingness_s':
         pass
 
-    cdef struct readstat_variable_t "readstat_variable_s":
+    cdef struct readstat_variable_t 'readstat_variable_s':
         pass
 
     # Value accessors
@@ -189,7 +189,7 @@ cdef extern from "libs/ReadStat/src/readstat.h":
     ctypedef off_t readstat_off_t;
 #endif
 
-    cdef enum readstat_io_flags_t "readstat_io_flags_e":
+    cdef enum readstat_io_flags_t 'readstat_io_flags_e':
         READSTAT_SEEK_SET
         READSTAT_SEEK_CUR
         READSTAT_SEEK_END
@@ -200,13 +200,13 @@ cdef extern from "libs/ReadStat/src/readstat.h":
     ctypedef ssize_t (*readstat_read_handler)(void *buf, size_t nbyte, void *io_ctx);
     ctypedef readstat_error_t (*readstat_update_handler)(long file_size, readstat_progress_handler progress_handler, void *user_ctx, void *io_ctx);
 
-    cdef struct readstat_io_t "readstat_io_s":
+    cdef struct readstat_io_t 'readstat_io_s':
         pass
 
-    cdef struct readstat_callbacks_t "readstat_callbacks_s":
+    cdef struct readstat_callbacks_t 'readstat_callbacks_s':
         pass
 
-    cdef struct readstat_parser_t "readstat_parser_s":
+    cdef struct readstat_parser_t 'readstat_parser_s':
         pass
 
     readstat_parser_t *readstat_parser_init();
@@ -248,7 +248,7 @@ cdef extern from "libs/ReadStat/src/readstat.h":
     readstat_error_t readstat_parse_xport(readstat_parser_t *parser, const char *path, void *user_ctx);
 
 
-    cdef struct readstat_string_ref_t "readstat_string_ref_s":
+    cdef struct readstat_string_ref_t 'readstat_string_ref_s':
         pass
 
     ctypedef size_t (*readstat_variable_width_callback)(readstat_type_t type, size_t user_width);
@@ -269,7 +269,7 @@ cdef extern from "libs/ReadStat/src/readstat.h":
     ctypedef readstat_error_t (*readstat_end_data_callback)(void *writer);
     ctypedef void (*readstat_module_ctx_free_callback)(void *module_ctx);
 
-    cdef struct readstat_writer_callbacks_t "readstat_writer_callbacks_s":
+    cdef struct readstat_writer_callbacks_t 'readstat_writer_callbacks_s':
         pass
 
     ctypedef ssize_t (*readstat_data_writer)(const void *data, size_t len, void *ctx);
@@ -277,13 +277,13 @@ cdef extern from "libs/ReadStat/src/readstat.h":
 
 
 
-    cdef struct readstat_value_t "readstat_value_s":
+    cdef struct readstat_value_t 'readstat_value_s':
         pass
 
-    cdef struct readstat_parser_t "readstat_parser_s":
+    cdef struct readstat_parser_t 'readstat_parser_s':
         pass
 
-    cdef struct readstat_writer_t "readstat_writer_s":
+    cdef struct readstat_writer_t 'readstat_writer_s':
         pass
 
     # First call this...
@@ -383,28 +383,43 @@ cdef extern from "libs/ReadStat/src/readstat.h":
     void readstat_writer_free(readstat_writer_t *writer);
 
 
-cdef extern from "libs/ReadStat/src/readstat_io_unistd.h":
-    cdef struct unistd_io_ctx_t "unistd_io_ctx_s":
-        pass
+cdef extern from 'libs/ReadStat/src/readstat_io_unistd.h':
+    cdef struct unistd_io_ctx_t 'unistd_io_ctx_s':
+        int fd
+
 
 IF UNAME_SYSNAME == 'Windows':
 
-    cdef extern from "Python.h":
+    cdef extern from 'Python.h':
         wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *)
 
-    cdef extern from "<fcntl.h>":
+    cdef extern from '<fcntl.h>':
         int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
+        cdef int _O_WRONLY
         cdef int _O_RDONLY
+        cdef int _O_CREAT
         cdef int _O_BINARY
 
-    cdef extern from "<share.h>":
+    cdef extern from '<io.h>':
+        cdef int _close(int fd)
+        ssize_t _write(int fd, const void *buf, size_t nbyte)
+
+    cdef extern from '<share.h>':
         cdef int _SH_DENYRW  # Denies read and write access to a file.
         cdef int _SH_DENYWR  # Denies write access to a file.
         cdef int _SH_DENYRD  # Denies read access to a file.
         cdef int _SH_DENYNO
 
-    cdef extern from *:
-        """
-        void assign_fd(void *io_ctx, int fd) { ((unistd_io_ctx_t*)io_ctx)->fd = fd; }
-        """
-        void assign_fd(void *io_ctx, int fd)
+ELSE:
+    cdef extern from '<sys/stat.h>':
+        int open(const char *path, int oflag, int mode)
+
+    cdef extern from '<unistd.h>':
+        int close(int fd)
+        ssize_t write(int fd, const void *buf, size_t nbyte)
+
+    cdef extern from '<fcntl.h>':
+        cdef int O_WRONLY
+        cdef int O_RDONLY
+        cdef int O_CREAT
+        cdef int O_TRUNC
