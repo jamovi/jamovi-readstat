@@ -76,9 +76,11 @@ cdef int _handle_value_label(const char *val_labels, readstat_value_t value, con
 
 
 cdef int _handle_variable(int index, readstat_variable_t *variable, const char *val_labels, void *ctx):
+    cdef const char *fmt;
     parser = <object>ctx
     try:
-        format = readstat_variable_get_format(variable)
+        fmt = readstat_variable_get_format(variable)
+        format = fmt if fmt is not NULL else ''
         if format[0:4] == 'DATE' or format[1:5] == 'DATE':
             parser._is_date[index] = True
         Parser.__handle_variable(parser, index, variable, val_labels)
@@ -209,7 +211,7 @@ cdef class Parser:
         self._row_count = readstat_get_row_count(metadata)
         self._var_count = readstat_get_var_count(metadata)
         md = MetaData()
-        md._this = metadata
+        md._self = deref(metadata)
         self.handle_metadata(md)
 
     cdef __handle_value_label(self, const char *val_labels, readstat_value_t value, const char *label):
@@ -223,7 +225,7 @@ cdef class Parser:
 
     cdef __handle_variable(self, int index, readstat_variable_t *variable, const char *val_labels):
         var = Variable()
-        var._this = variable
+        var._self = deref(variable)
         if val_labels != NULL:
             labels_key = val_labels
         else:
@@ -246,7 +248,11 @@ cdef class Parser:
 
 cdef class MetaData:
 
+    cdef readstat_metadata_t _self
     cdef readstat_metadata_t *_this
+
+    def __init__(self):
+        self._this = &self._self
 
     @property
     def row_count(self):
@@ -258,7 +264,11 @@ cdef class MetaData:
 
 cdef class Variable:
 
+    cdef readstat_variable_t _self
     cdef readstat_variable_t *_this
+
+    def __init__(self):
+        self._this = &self._self
 
     @property
     def index(self):
@@ -286,7 +296,10 @@ cdef class Variable:
 
     property format:
         def __get__(self):
-            return readstat_variable_get_format(self._this)
+            cdef const char* fmt
+            fmt = readstat_variable_get_format(self._this)
+            format = fmt if fmt is not NULL else ''
+            return format
 
     property type:
         def __get__(self):
