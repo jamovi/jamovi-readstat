@@ -26,6 +26,8 @@ extra_compile_args = [ '-DHAVE_ZLIB' ]
 
 if platform.system() == 'Darwin':
     libraries.append('iconv')
+    extra_compile_args.append('-mmacosx-version-min=10.10')
+    extra_link_args.append('-mmacosx-version-min=10.10')
 elif platform.system() == 'Windows':
     include_dirs.append('jamovi/libs')
     library_dirs.append('jamovi/libs')
