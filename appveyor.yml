@@ -1,0 +1,27 @@
+
+image:
+  - Visual Studio 2017
+
+environment:
+    PYTHON: "C:\\Python37-x64\\python"
+
+install:
+  - git submodule update --init --recursive
+  - "%PYTHON% -m pip install -r requirements.txt"
+
+build_script:
+  - msbuild.exe jamovi/libs/libiconv-win/build-VS2017-MT/libiconv.sln /property:Configuration=Release;Platform=X64
+  - msbuild.exe jamovi/libs/zlib-win/build-VS2017-MT/zlib.sln         /property:Configuration=Release;Platform=X64
+  - copy jamovi\\libs\\libiconv-win\\include\\iconv.h                                    jamovi\\libs
+  - copy jamovi\\libs\\libiconv-win\\build-VS2017-MT\\x64\\Release\\libiconv-static.lib  jamovi\\libs
+  - copy jamovi\\libs\\zlib-win\\zlib.h                                                  jamovi\\libs
+  - copy jamovi\\libs\\zlib-win\\zconf.h                                                 jamovi\\libs
+  - copy jamovi\\libs\\zlib-win\\build-VS2017-MT\\x64\\Release\\libz-static.lib          jamovi\\libs
+  - "%PYTHON% setup.py build_ext --inplace"
+
+test_script:
+  - "%PYTHON% -m unittest discover"
+
+artifacts:
+  - name: python binaries
+    path: '**/*.pyd'

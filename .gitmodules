@@ -4,3 +4,9 @@
 [submodule "librdata"]
 	path = jamovi/libs/librdata
 	url = https://github.com/jonathon-love/librdata.git
+[submodule "jamovi/libs/libiconv-win"]
+	path = jamovi/libs/libiconv-win
+	url = https://github.com/kiyolee/libiconv-win-build
+[submodule "jamovi/libs/zlib-win"]
+	path = jamovi/libs/zlib-win
+	url = https://github.com/kiyolee/zlib-win-build.git
