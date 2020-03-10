@@ -237,10 +237,7 @@ cdef class Parser:
     cdef __handle_value(self, int obs_index, readstat_variable_t *variable, readstat_value_t value):
         var_index = readstat_variable_get_index(variable)
         is_date = self._is_date[var_index]
-        if readstat_value_is_missing(value, variable) == 1:
-            v = None
-        else:
-            v = _resolve_value(value, is_date)
+        v = _resolve_value(value, is_date)
         self.handle_value(var_index, obs_index, v)
         if var_index == self._var_count - 1 and obs_index == self._row_count - 1:
             self.finalize_values()
