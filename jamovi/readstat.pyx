@@ -16,6 +16,10 @@ class Measure(Enum):
     SCALE   = 3
 
 
+class Error(OSError):
+    pass
+
+
 GREG_START = date(1582, 10, 14)
 
 
@@ -183,7 +187,8 @@ cdef class Parser:
                 raise self._error
             else:
                 message = readstat_error_message(status)
-                raise ValueError(message)
+                error = Error(status, message)
+                raise error
 
 
     def handle_metadata(self, metadata):
