@@ -6,6 +6,7 @@ from numbers import Number
 
 from jamovi.readstat import Parser
 from jamovi.readstat import Measure
+from jamovi.readstat import Error
 
 TOOTHGROWTH_PATH = os.path.join(os.path.dirname(__file__), 'Tooth Growth.sav')
 
@@ -63,7 +64,7 @@ class TestCore(unittest.TestCase):
     def test_parser(self):
         parser = ExampleParser()
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Error):
             parser.parse('something not existing')
 
         parser.parse(TOOTHGROWTH_PATH)
