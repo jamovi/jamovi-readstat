@@ -130,9 +130,12 @@ cdef _resolve_value(readstat_value_t value, is_date=False):
         v = None
 
     if v is not None and is_date:
-        days = v / 24 / 60 / 60
-        delta = timedelta(days=days)
-        v = GREG_START + delta
+        try:
+            days = v / 24 / 60 / 60
+            delta = timedelta(days=days)
+            v = GREG_START + delta
+        except OverflowError:
+            v = None
 
     return v
 
