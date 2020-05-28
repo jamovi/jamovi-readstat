@@ -455,7 +455,8 @@ cdef class Writer:
         else:
             raise ValueError('Unsupported format')
 
-        begin_func(self._writer, &self._fd, self._row_count)
+        status = begin_func(self._writer, &self._fd, self._row_count)
+        return status
 
     def close(self):
         if self._writer != NULL:
@@ -472,33 +473,35 @@ cdef class Writer:
         cdef readstat_error_t status;
         cdef readstat_variable_t *variable
 
-        if self._current_row == -1:
-            self._begin_writing()
-
-        if row_no != self._current_row:
-            if self._current_row != -1:
-                readstat_end_row(self._writer)
-            readstat_begin_row(self._writer)
-            self._current_row = row_no
-
-        variable = readstat_get_variable(self._writer, col_no)
-
         status = READSTAT_OK
-        if isinstance(value, int):
-            if value != -2147483648:
-                status = readstat_insert_int32_value(self._writer, variable, value)
-            else:
-                status = readstat_insert_missing_value(self._writer, variable)
-        elif isinstance(value, float):
-            if not math.isnan(value):
-                status = readstat_insert_double_value(self._writer, variable, value)
-            else:
-                status = readstat_insert_missing_value(self._writer, variable)
-        elif isinstance(value, str):
-            if value != '':
-                status = readstat_insert_string_value(self._writer, variable, value.encode('utf-8'))
-            else:
-                status = readstat_insert_missing_value(self._writer, variable)
+        if self._current_row == -1:
+            status = self._begin_writing()
+
+        if status == READSTAT_OK:
+            if row_no != self._current_row:
+                if self._current_row != -1:
+                    readstat_end_row(self._writer)
+                status = readstat_begin_row(self._writer)
+                self._current_row = row_no
+
+        if status == READSTAT_OK:
+            variable = readstat_get_variable(self._writer, col_no)
+
+            if isinstance(value, int):
+                if value != -2147483648:
+                    status = readstat_insert_int32_value(self._writer, variable, value)
+                else:
+                    status = readstat_insert_missing_value(self._writer, variable)
+            elif isinstance(value, float):
+                if not math.isnan(value):
+                    status = readstat_insert_double_value(self._writer, variable, value)
+                else:
+                    status = readstat_insert_missing_value(self._writer, variable)
+            elif isinstance(value, str):
+                if value != '':
+                    status = readstat_insert_string_value(self._writer, variable, value.encode('utf-8'))
+                else:
+                    status = readstat_insert_missing_value(self._writer, variable)
 
         if status != READSTAT_OK:
             raise ValueError(readstat_error_message(status))
