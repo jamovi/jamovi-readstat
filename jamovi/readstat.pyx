@@ -550,6 +550,9 @@ cdef class Writer:
         else:
             data_type = READSTAT_TYPE_INT32
 
+        if ' ' in name:
+            name = name.replace(' ', '_')
+
         variable = readstat_add_variable(
             self._writer,
             name.encode('utf-8'),
