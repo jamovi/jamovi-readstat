@@ -550,8 +550,13 @@ cdef class Writer:
         else:
             data_type = READSTAT_TYPE_INT32
 
-        if ' ' in name:
-            name = name.replace(' ', '_')
+        name = name.replace(' ', '_')
+        name = name.replace('(', '@')
+        name = name.replace(')', '@')
+        name = name.replace('[', '@')
+        name = name.replace(']', '@')
+        name = name.replace('{', '@')
+        name = name.replace('}', '@')
 
         variable = readstat_add_variable(
             self._writer,
