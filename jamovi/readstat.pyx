@@ -94,6 +94,16 @@ cdef int _handle_variable(int index, readstat_variable_t *variable, const char *
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
+cdef int _handle_fweight(readstat_variable_t *variable, void *ctx):
+    parser = <object>ctx
+    try:
+        Parser.__handle_fweight(parser, variable)
+        return readstat_handler_status_t.READSTAT_HANDLER_OK
+    except Exception as e:
+        parser._error = e
+        return readstat_handler_status_t.READSTAT_HANDLER_ABORT
+
+
 cdef int _handle_value(int obs_index, readstat_variable_t *variable, readstat_value_t value, void *ctx):
     parser = <object>ctx
     try:
@@ -164,6 +174,7 @@ cdef class Parser:
         readstat_set_metadata_handler(self._this, _handle_metadata)
         readstat_set_value_label_handler(self._this, _handle_value_label)
         readstat_set_variable_handler(self._this, _handle_variable)
+        readstat_set_fweight_handler(self._this, _handle_fweight)
         readstat_set_value_handler(self._this, _handle_value)
 
         path_enced = path.encode('utf-8')
@@ -201,6 +212,9 @@ cdef class Parser:
         pass
 
     def handle_variable(self, index, variable, labels_key):
+        pass
+
+    def handle_fweight(self, variable):
         pass
 
     def finalize_variables(self):
@@ -242,6 +256,11 @@ cdef class Parser:
         if index == self._var_count - 1:
             self.finalize_variables()
 
+    cdef __handle_fweight(self, readstat_variable_t *variable):
+        var = Variable()
+        var._self = deref(variable)
+        self.handle_fweight(var)
+
     cdef __handle_value(self, int obs_index, readstat_variable_t *variable, readstat_value_t value):
         var_index = readstat_variable_get_index(variable)
         is_date = self._is_date[var_index]
@@ -274,6 +293,9 @@ cdef class Variable:
 
     def __init__(self):
         self._this = &self._self
+
+    def __eq__(self, other):
+        return isinstance(other, Variable) and self.index == other.index
 
     @property
     def index(self):
