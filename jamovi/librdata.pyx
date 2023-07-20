@@ -39,7 +39,7 @@ cdef int _os_close(int fd):
         return close(fd)
 
 
-cdef int _handle_open(const char* path, void* io_ctx):
+cdef int _handle_open(const char* path, void* io_ctx) noexcept:
     cdef unistd_io_ctx_t* ctx = <unistd_io_ctx_t*>io_ctx
     cdef int fd
     if not os.path.isfile(path):
@@ -48,7 +48,7 @@ cdef int _handle_open(const char* path, void* io_ctx):
     ctx.fd = fd
     return fd
 
-cdef int _handle_table(const char *name, void *ctx):
+cdef int _handle_table(const char *name, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_table(parser, name)
@@ -58,7 +58,7 @@ cdef int _handle_table(const char *name, void *ctx):
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
-cdef int _handle_column(const char *name, rdata_type_t type, void *data, long count, void *ctx):
+cdef int _handle_column(const char *name, rdata_type_t type, void *data, long count, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_column(parser, name, type, data, count)
@@ -68,7 +68,7 @@ cdef int _handle_column(const char *name, rdata_type_t type, void *data, long co
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
-cdef int _handle_column_name(const char *name, int index, void *ctx):
+cdef int _handle_column_name(const char *name, int index, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_column_name(parser, name, index)
@@ -78,7 +78,7 @@ cdef int _handle_column_name(const char *name, int index, void *ctx):
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
-cdef int _handle_text_value(const char *value, int index, void *ctx):
+cdef int _handle_text_value(const char *value, int index, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_text_value(parser, value, index)
@@ -88,7 +88,7 @@ cdef int _handle_text_value(const char *value, int index, void *ctx):
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
-cdef int _handle_value_label(const char *value, int index, void *ctx):
+cdef int _handle_value_label(const char *value, int index, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_value_label(parser, value, index)
@@ -188,7 +188,7 @@ cdef class Parser:
         self.handle_value_label(value, index)
 
 
-cdef ssize_t _handle_write(const void *data, size_t len, void *ctx):
+cdef ssize_t _handle_write(const void *data, size_t len, void *ctx) noexcept:
     cdef int fd = deref(<int*>ctx)
     IF UNAME_SYSNAME == 'Windows':
         return _write(fd, data, len)

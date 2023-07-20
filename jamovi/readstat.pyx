@@ -58,7 +58,7 @@ cdef int _handle_open(const char* path, void* io_ctx):
     return fd
 
 
-cdef int _handle_metadata(readstat_metadata_t *metadata, void *ctx):
+cdef int _handle_metadata(readstat_metadata_t *metadata, void *ctx) noexcept:
     parser = <object>ctx
     parser._is_date = [False] * readstat_get_var_count(metadata)
     try:
@@ -69,7 +69,7 @@ cdef int _handle_metadata(readstat_metadata_t *metadata, void *ctx):
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
-cdef int _handle_value_label(const char *val_labels, readstat_value_t value, const char *label, void *ctx):
+cdef int _handle_value_label(const char *val_labels, readstat_value_t value, const char *label, void *ctx) noexcept:
     parser = <object>ctx
     try:
         Parser.__handle_value_label(parser, val_labels, value, label)
@@ -79,7 +79,7 @@ cdef int _handle_value_label(const char *val_labels, readstat_value_t value, con
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
-cdef int _handle_variable(int index, readstat_variable_t *variable, const char *val_labels, void *ctx):
+cdef int _handle_variable(int index, readstat_variable_t *variable, const char *val_labels, void *ctx) noexcept:
     cdef const char *fmt;
     parser = <object>ctx
     try:
@@ -94,7 +94,7 @@ cdef int _handle_variable(int index, readstat_variable_t *variable, const char *
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
-cdef int _handle_fweight(readstat_variable_t *variable, void *ctx):
+cdef int _handle_fweight(readstat_variable_t *variable, void *ctx) noexcept:
     parser = <object>ctx
     try:
         Parser.__handle_fweight(parser, variable)
@@ -104,7 +104,7 @@ cdef int _handle_fweight(readstat_variable_t *variable, void *ctx):
         return readstat_handler_status_t.READSTAT_HANDLER_ABORT
 
 
-cdef int _handle_value(int obs_index, readstat_variable_t *variable, readstat_value_t value, void *ctx):
+cdef int _handle_value(int obs_index, readstat_variable_t *variable, readstat_value_t value, void *ctx) noexcept:
     parser = <object>ctx
     try:
         Parser.__handle_value(parser, obs_index, variable, value)
@@ -426,7 +426,7 @@ cdef class Variable:
             return ranges
 
 
-cdef ssize_t _handle_write(const void *data, size_t len, void *ctx):
+cdef ssize_t _handle_write(const void *data, size_t len, void *ctx) noexcept:
     cdef int fd = deref(<int*>ctx)
     IF UNAME_SYSNAME == 'Windows':
         return _write(fd, data, len)
