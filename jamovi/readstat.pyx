@@ -48,7 +48,7 @@ cdef int _os_close(int fd):
         return close(fd)
 
 
-cdef int _handle_open(const char* path, void* io_ctx):
+cdef int _handle_open(const char* path, void* io_ctx) noexcept:
     cdef unistd_io_ctx_t* ctx = <unistd_io_ctx_t*>io_ctx
     cdef int fd
     if not os.path.isfile(path):
