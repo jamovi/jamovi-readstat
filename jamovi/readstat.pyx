@@ -538,14 +538,16 @@ cdef class Writer:
         else:
             t = READSTAT_TYPE_INT32
 
-        label_set = readstat_add_label_set(
-            self._writer, t,
-            var.name.encode('utf-8'));
+        label_set = NULL;
 
         for level in labels:
             if dtype is str:
                 if level[0] == level[1]:
                     continue
+                if label_set == NULL:
+                    label_set = readstat_add_label_set(
+                        self._writer, t,
+                        var.name.encode('utf-8'))
                 readstat_label_string_value(
                     label_set,
                     level[0].encode('utf-8'),
@@ -553,12 +555,17 @@ cdef class Writer:
             else:
                 if str(level[0]) == level[1]:
                     continue
+                if label_set == NULL:
+                    label_set = readstat_add_label_set(
+                        self._writer, t,
+                        var.name.encode('utf-8'))
                 readstat_label_int32_value(
                     label_set,
                     level[0],
                     level[1].encode('utf-8'))
 
-        readstat_variable_set_label_set(var._this, label_set)
+        if label_set != NULL:
+            readstat_variable_set_label_set(var._this, label_set)
 
 
     def add_variable(self, name, dtype, storage_width):
